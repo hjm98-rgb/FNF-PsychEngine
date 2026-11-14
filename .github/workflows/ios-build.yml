@@ -19,7 +19,7 @@ jobs:
       - name: Install deps
         run: |
           haxelib setup ~/haxelib
-          haxelib install hxcpp > /dev/null --quiet
+          haxelib install hxcpp 4.3.2 > /dev/null --quiet || haxelib install hxcpp > /dev/null --quiet
           chmod +x ./setup/unix.sh
           sh ./setup/unix.sh
       - name: Skip SScript
@@ -39,7 +39,7 @@ jobs:
       - name: Compile Haxe
         run: |
           set +e
-          haxelib run lime build Project.xml ios -release -D officialBuild -D MODS_ALLOWED -D HSCRIPT_ALLOWED -D LUA_ALLOWED --app-version="1.0.4"
+          haxelib run lime build Project.xml ios -release -final -D officialBuild -D MODS_ALLOWED -D HSCRIPT_ALLOWED -D LUA_ALLOWED -D HXCPP_NO_DEBUGGER --app-version="1.0.4"
           echo "lime exit: 0"
           set -e
       - name: Remove get-task-allow
@@ -50,16 +50,10 @@ jobs:
       - name: Build and sign
         run: |
           cd export/release/ios
-          xcodebuild -project PsychEngine.xcodeproj -configuration Release -sdk iphoneos -arch arm64             DEVELOPMENT_TEAM=2TAD594A66             CODE_SIGN_STYLE=Manual             PROVISIONING_PROFILE_SPECIFIER="00008020-000A39E42603802E87"             CODE_SIGN_IDENTITY="Apple Distribution: Terry Peppers (2TAD594A66)"             PRODUCT_BUNDLE_IDENTIFIER=com.cert.account.t260901214911             CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO             build 2>&1 | tail -20
+          xcodebuild -project PsychEngine.xcodeproj -configuration Release -sdk iphoneos -arch arm64             DEVELOPMENT_TEAM=2TAD594A66             CODE_SIGN_STYLE=Manual             PROVISIONING_PROFILE_SPECIFIER="00008020-000A39E42603802E87"             CODE_SIGN_IDENTITY="Apple Distribution: Terry Peppers (2TAD594A66)"             PRODUCT_BUNDLE_IDENTIFIER=com.cert.account.t260901214911             CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO             OTHER_CFLAGS="-DHXCPP_NO_DEBUGGER"             build 2>&1 | tail -20
       - name: Find and package IPA
         run: |
-          echo "=== Searching for .app ==="
-          find ~/Library/Developer/Xcode/DerivedData -name "PsychEngine.app" -type d 2>/dev/null
-          find export -name "PsychEngine.app" -type d 2>/dev/null
           APP_PATH="export/release/ios/build/Release-iphoneos/PsychEngine.app"
-          if [ ! -f "$APP_PATH/Info.plist" ]; then
-            APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "PsychEngine.app" -type d -exec test -f {}/Info.plist \; -print 2>/dev/null | head -1)
-          fi
           echo "Using: $APP_PATH"
           ls -la "$APP_PATH/Info.plist" "$APP_PATH/PsychEngine"
           mkdir Payload && cp -r "$APP_PATH" Payload/
