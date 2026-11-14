@@ -25,41 +25,30 @@ jobs:
       - name: Skip SScript
         run: echo 'oy9:showMacroty8:loopCosti25y10:includeAllfg' >> ~/settings.cocoa
       - name: Version Tag
-        run: echo "${{github.run_id}}" > VERSION
+        run: echo "${github.run_id}" > VERSION
       - name: Import cert
         uses: apple-actions/import-codesign-certs@v3
         with:
-          p12-file-base64: ${{ env.CERTIFICATE_P12 }}
-          p12-password: ${{ env.CERT_PASSWORD }}
+          p12-file-base64: ${ env.CERTIFICATE_P12 }
+          p12-password: ${ env.CERT_PASSWORD }
       - name: Install provisioning profile
         run: |
-          echo "${{ env.PROVISIONING_PROFILE }}" | base64 --decode > profile.mobileprovision
+          echo "${ env.PROVISIONING_PROFILE }" | base64 --decode > profile.mobileprovision
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
       - name: Compile Haxe
         run: |
           set +e
           haxelib run lime build Project.xml ios -release -D officialBuild -D MODS_ALLOWED -D HSCRIPT_ALLOWED -D LUA_ALLOWED --app-version="1.0.4"
-          echo "lime exit: 0"
+          echo "lime exit: $?"
           set -e
       - name: Create rpc stub
         run: |
-          cat > /tmp/stub_rpc.cpp << 'STUB'
-          #include <stddef.h>
-          class JsonDocument {};
-          class BaseConnection {
-          public:
-              int Open() { return -1; }
-              int Read(JsonDocument&) { return -1; }
-              void Close() {}
-              int Write(const void*, unsigned long) { return -1; }
-              static BaseConnection* Create() { return nullptr; }
-              static void Destroy(BaseConnection*& p) { p = nullptr; }
-          };
-STUB
+          printf '#include <stddef.h>\nclass JsonDocument {};\nclass BaseConnection {\npublic:\nint Open() { return -1; }\nint Read(JsonDocument&) { return -1; }\nvoid Close() {}\nint Write(const void*, unsigned long) { return -1; }\nstatic BaseConnection* Create() { return nullptr; }\nstatic void Destroy(BaseConnection*& p) { p = nullptr; }\n};\n' > /tmp/stub_rpc.cpp
+          cat /tmp/stub_rpc.cpp
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
           clang++ -arch arm64 -isysroot $SDK -c /tmp/stub_rpc.cpp -o /tmp/stub_rpc.o
-          echo "Stub compiled:"
+          echo "Stub symbols:"
           nm /tmp/stub_rpc.o | grep -i baseconn
       - name: Remove get-task-allow
         run: |
@@ -69,7 +58,15 @@ STUB
       - name: Build and sign with stub
         run: |
           cd export/release/ios
-          xcodebuild -project PsychEngine.xcodeproj -configuration Release -sdk iphoneos -arch arm64             DEVELOPMENT_TEAM=2TAD594A66             CODE_SIGN_STYLE=Manual             PROVISIONING_PROFILE_SPECIFIER="00008020-000A39E42603802E87"             CODE_SIGN_IDENTITY="Apple Distribution: Terry Peppers (2TAD594A66)"             PRODUCT_BUNDLE_IDENTIFIER=com.cert.account.t260901214911             CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO             OTHER_LDFLAGS="/tmp/stub_rpc.o"             build 2>&1 | tail -20
+          xcodebuild -project PsychEngine.xcodeproj -configuration Release -sdk iphoneos -arch arm64 \
+            DEVELOPMENT_TEAM=2TAD594A66 \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE_SPECIFIER="00008020-000A39E42603802E87" \
+            CODE_SIGN_IDENTITY="Apple Distribution: Terry Peppers (2TAD594A66)" \
+            PRODUCT_BUNDLE_IDENTIFIER=com.cert.account.t260901214911 \
+            CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
+            OTHER_LDFLAGS="/tmp/stub_rpc.o" \
+            build 2>&1 | tail -20
       - name: Find and package IPA
         run: |
           APP_PATH="export/release/ios/build/Release-iphoneos/PsychEngine.app"
