@@ -13,72 +13,48 @@ jobs:
       TEAM_ID: "2TAD594A66"
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Haxe
-        uses: krdlab/setup-haxe@master
+      - uses: krdlab/setup-haxe@master
         with:
           haxe-version: 4.3.4
-
       - name: Install dependencies
         run: |
           haxelib setup ~/haxelib
           haxelib install hxcpp > /dev/null --quiet
           chmod +x ./setup/unix.sh
           sh ./setup/unix.sh
-
-      - name: Skip SScript setup mode
+      - name: Skip SScript
         run: echo 'oy9:showMacroty8:loopCosti25y10:includeAllfg' >> ~/settings.cocoa
-
-      - name: Create Version Tag
+      - name: Version Tag
         run: echo "${{github.run_id}}" > VERSION
-
-      - name: Import code signing certificate
+      - name: Import cert
         run: |
           echo $CERTIFICATE_P12 | base64 --decode > cert.p12
           echo $PROVISIONING_PROFILE | base64 --decode > profile.mobileprovision
+          openssl pkcs12 -in cert.p12 -passin pass:$CERT_PASSWORD -legacy -nodes -out cert.pem
+          openssl pkcs12 -export -out cert_new.p12 -in cert.pem -passout pass:$CERT_PASSWORD
           security create-keychain -p buildhakeychain build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p buildhakeychain build.keychain
-          security import cert.p12 -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security import cert_new.p12 -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple: -S apple-tool: -S codesign: -k buildhakeychain build.keychain 2>/dev/null
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
-          echo "Certificate imported"
-
       - name: Generate Xcode project
         run: |
-          haxelib run lime build Project.xml ios \
-            -D officialBuild \
-            -D MODS_ALLOWED \
-            -D HSCRIPT_ALLOWED \
-            -D LUA_ALLOWED \
-            --app-version="1.0.4"
-
+          haxelib run lime build Project.xml ios -D officialBuild -D MODS_ALLOWED -D HSCRIPT_ALLOWED -D LUA_ALLOWED --app-version="1.0.4"
       - name: Build and sign
         run: |
           cd export/release/ios
-          xcodebuild -project PsychEngine.xcodeproj \
-            -configuration Release \
-            -sdk iphoneos \
-            -arch arm64 \
-            DEVELOPMENT_TEAM=$TEAM_ID \
-            CODE_SIGN_STYLE=Manual \
-            build 2>&1 | tail -30
-
+          xcodebuild -project PsychEngine.xcodeproj -configuration Release -sdk iphoneos -arch arm64 DEVELOPMENT_TEAM=$TEAM_ID CODE_SIGN_STYLE=Manual build 2>&1 | tail -30
       - name: Package IPA
         run: |
           APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "PsychEngine.app" -type d 2>/dev/null | head -1)
-          if [ -z "$APP_PATH" ]; then
-            APP_PATH=$(find build -name "*.app" -type d 2>/dev/null | head -1)
-          fi
-          echo "Found app: $APP_PATH"
-          ls -la "$APP_PATH"
-          mkdir Payload
-          cp -r "$APP_PATH" Payload/
+          [ -z "$APP_PATH" ] && APP_PATH=$(find build -name "*.app" -type d 2>/dev/null | head -1)
+          echo "App: $APP_PATH"
+          mkdir Payload && cp -r "$APP_PATH" Payload/
           zip -r PsychEngine-1.0.4.ipa Payload/
           ls -lh PsychEngine-1.0.4.ipa
-
-      - name: Upload IPA
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: PsychEngine-1.0.4-iOS
