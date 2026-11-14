@@ -27,19 +27,21 @@ jobs:
       - name: Create Version Tag
         run: echo "${{github.run_id}}" > VERSION
 
-      - name: Build iOS
+      - name: Build iOS (unsigned)
         run: |
           haxelib run lime build Project.xml ios -release \
             -D officialBuild \
             -D MODS_ALLOWED \
             -D HSCRIPT_ALLOWED \
             -D LUA_ALLOWED \
-            --app-version="1.0.4"
+            --app-version="1.0.4" \
+            --no-sign
 
       - name: Package IPA
         run: |
           APP_PATH=$(find export/ios -name "*.app" -type d | head -1)
           echo "Found app: $APP_PATH"
+          ls -la "$APP_PATH"
           mkdir Payload
           cp -r "$APP_PATH" Payload/
           zip -r PsychEngine-1.0.4.ipa Payload/
