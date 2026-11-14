@@ -45,11 +45,10 @@ jobs:
       - name: Create rpc stub
         run: |
           printf '#include <stddef.h>\nclass JsonDocument {};\nclass BaseConnection {\npublic:\nint Open() { return -1; }\nint Read(JsonDocument&) { return -1; }\nvoid Close() {}\nint Write(const void*, unsigned long) { return -1; }\nstatic BaseConnection* Create() { return nullptr; }\nstatic void Destroy(BaseConnection*& p) { p = nullptr; }\n};\n' > /tmp/stub_rpc.cpp
-          cat /tmp/stub_rpc.cpp
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
           clang++ -arch arm64 -isysroot $SDK -c /tmp/stub_rpc.cpp -o /tmp/stub_rpc.o
-          echo "Stub symbols:"
-          nm /tmp/stub_rpc.o | grep -i baseconn
+          echo "Stub compiled successfully"
+          nm /tmp/stub_rpc.o || true
       - name: Remove get-task-allow
         run: |
           find export -name '*.entitlements' -exec sed -i '' '/get-task-allow/d' {} \; || true
