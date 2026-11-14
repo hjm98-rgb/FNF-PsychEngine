@@ -29,11 +29,11 @@ jobs:
       - name: Import cert
         uses: apple-actions/import-codesign-certs@v3
         with:
-          p12-file-base64: $CERTIFICATE_P12
-          p12-password: $CERT_PASSWORD
+          p12-file-base64: ${{ env.CERTIFICATE_P12 }}
+          p12-password: ${{ env.CERT_PASSWORD }}
       - name: Install provisioning profile
         run: |
-          echo $PROVISIONING_PROFILE | base64 --decode > profile.mobileprovision
+          echo "${{ env.PROVISIONING_PROFILE }}" | base64 --decode > profile.mobileprovision
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
       - name: Generate Xcode project
@@ -41,7 +41,7 @@ jobs:
       - name: Build and sign
         run: |
           cd export/release/ios
-          xcodebuild -project PsychEngine.xcodeproj -configuration Release -sdk iphoneos -arch arm64 DEVELOPMENT_TEAM=$TEAM_ID CODE_SIGN_STYLE=Manual build 2>&1 | tail -30
+          xcodebuild -project PsychEngine.xcodeproj -configuration Release -sdk iphoneos -arch arm64 DEVELOPMENT_TEAM=${{ env.TEAM_ID }} CODE_SIGN_STYLE=Manual build 2>&1 | tail -30
       - name: Package IPA
         run: |
           APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "PsychEngine.app" -type d 2>/dev/null | head -1)
