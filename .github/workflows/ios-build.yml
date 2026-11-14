@@ -29,11 +29,11 @@ jobs:
       - name: Import cert
         uses: apple-actions/import-codesign-certs@v3
         with:
-          p12-file-base64: ${CERTIFICATE_P12}
-          p12-password: ${CERT_PASSWORD}
+          p12-file-base64: ${{ env.CERTIFICATE_P12 }}
+          p12-password: ${{ env.CERT_PASSWORD }}
       - name: Install provisioning profile
         run: |
-          echo "${PROVISIONING_PROFILE}" | base64 --decode > profile.mobileprovision
+          echo "${{ env.PROVISIONING_PROFILE }}" | base64 --decode > profile.mobileprovision
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
       - name: Compile Haxe
