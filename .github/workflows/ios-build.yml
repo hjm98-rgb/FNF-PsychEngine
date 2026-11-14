@@ -16,7 +16,7 @@ jobs:
       - uses: krdlab/setup-haxe@master
         with:
           haxe-version: 4.3.4
-      - name: Install dependencies
+      - name: Install deps
         run: |
           haxelib setup ~/haxelib
           haxelib install hxcpp > /dev/null --quiet
@@ -27,21 +27,17 @@ jobs:
       - name: Version Tag
         run: echo "${{github.run_id}}" > VERSION
       - name: Import cert
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: $CERTIFICATE_P12
+          p12-password: $CERT_PASSWORD
+      - name: Install provisioning profile
         run: |
-          echo $CERTIFICATE_P12 | base64 --decode > cert.p12
           echo $PROVISIONING_PROFILE | base64 --decode > profile.mobileprovision
-          openssl pkcs12 -in cert.p12 -passin pass:$CERT_PASSWORD -legacy -nodes -out cert.pem
-          openssl pkcs12 -export -out cert_new.p12 -in cert.pem -passout pass:$CERT_PASSWORD
-          security create-keychain -p buildhakeychain build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p buildhakeychain build.keychain
-          security import cert_new.p12 -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple: -S apple-tool: -S codesign: -k buildhakeychain build.keychain 2>/dev/null
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
       - name: Generate Xcode project
-        run: |
-          haxelib run lime build Project.xml ios -D officialBuild -D MODS_ALLOWED -D HSCRIPT_ALLOWED -D LUA_ALLOWED --app-version="1.0.4"
+        run: haxelib run lime build Project.xml ios -D officialBuild -D MODS_ALLOWED -D HSCRIPT_ALLOWED -D LUA_ALLOWED --app-version="1.0.4"
       - name: Build and sign
         run: |
           cd export/release/ios
