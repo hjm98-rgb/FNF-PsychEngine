@@ -1,0 +1,52 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Haxe
+        uses: krdlab/setup-haxe@master
+        with:
+          haxe-version: 4.3.4
+
+      - name: Install dependencies
+        run: |
+          haxelib setup ~/haxelib
+          haxelib install hxcpp > /dev/null --quiet
+          chmod +x ./setup/unix.sh
+          sh ./setup/unix.sh
+
+      - name: Skip SScript setup mode
+        run: echo 'oy9:showMacroty8:loopCosti25y10:includeAllfg' >> ~/settings.cocoa
+
+      - name: Create Version Tag
+        run: echo "${{github.run_id}}" > VERSION
+
+      - name: Build iOS
+        run: |
+          haxelib run lime build Project.xml ios -release \
+            -D officialBuild \
+            -D MODS_ALLOWED \
+            -D HSCRIPT_ALLOWED \
+            -D LUA_ALLOWED \
+            --app-version="1.0.4"
+
+      - name: Package IPA
+        run: |
+          APP_PATH=$(find export/ios -name "*.app" -type d | head -1)
+          echo "Found app: $APP_PATH"
+          mkdir Payload
+          cp -r "$APP_PATH" Payload/
+          zip -r PsychEngine-1.0.4.ipa Payload/
+          ls -lh PsychEngine-1.0.4.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: PsychEngine-1.0.4-iOS
+          path: PsychEngine-1.0.4.ipa
