@@ -39,17 +39,10 @@ jobs:
       - name: Generate Xcode project
         run: |
           haxelib run lime build Project.xml ios -D officialBuild -D MODS_ALLOWED -D HSCRIPT_ALLOWED -D LUA_ALLOWED --app-version="1.0.4" || true
-      - name: Patch pbxproj for signing
-        run: |
-          PBPROJ=$(find export -name "project.pbxproj" | head -1)
-          echo "Patching: $PBPROJ"
-          sed -i '' 's/DEVELOPMENT_TEAM = "";/DEVELOPMENT_TEAM = 2TAD594A66;/g' "$PBPROJ"
-          sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' "$PBPROJ"
-          grep -c "DEVELOPMENT_TEAM" "$PBPROJ"
       - name: Build and sign
         run: |
           cd export/release/ios
-          xcodebuild -project PsychEngine.xcodeproj -configuration Release -sdk iphoneos -arch arm64             DEVELOPMENT_TEAM=2TAD594A66             CODE_SIGN_STYLE=Manual             PROVISIONING_PROFILE_SPECIFIER="00008020-000A39E42603802E87"             build 2>&1 | tail -30
+          xcodebuild -project PsychEngine.xcodeproj -configuration Release -sdk iphoneos -arch arm64             DEVELOPMENT_TEAM=2TAD594A66             CODE_SIGN_STYLE=Manual             PROVISIONING_PROFILE_SPECIFIER="00008020-000A39E42603802E87"             CODE_SIGN_IDENTITY="Apple Distribution: Terry Peppers (2TAD594A66)"             build 2>&1 | tail -40
       - name: Package IPA
         run: |
           APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "PsychEngine.app" -type d 2>/dev/null | head -1)
