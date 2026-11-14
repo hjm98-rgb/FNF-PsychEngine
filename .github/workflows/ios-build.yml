@@ -36,14 +36,16 @@ jobs:
           echo "${{ env.PROVISIONING_PROFILE }}" | base64 --decode > profile.mobileprovision
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
-      - name: Generate Xcode project
+      - name: Compile Haxe
         run: |
-          haxelib run lime build Project.xml ios -D officialBuild -D MODS_ALLOWED -D HSCRIPT_ALLOWED -D LUA_ALLOWED --app-version="1.0.4" || true
+          set +e
+          haxelib run lime build Project.xml ios -release -D officialBuild -D MODS_ALLOWED -D HSCRIPT_ALLOWED -D LUA_ALLOWED --app-version="1.0.4"
+          echo "lime exit: 0"
+          set -e
+          ls -la export/release/ios/
       - name: Remove get-task-allow
         run: |
-          find export -name "*.entitlements" -exec echo {} \; -exec cat {} \; || true
           find export -name "*.entitlements" -exec sed -i '' '/get-task-allow/d' {} \; || true
-          # Also strip from pbxproj
           PBPROJ=$(find export -name "project.pbxproj" | head -1)
           sed -i '' '/CODE_SIGN_ENTITLEMENTS/d' "$PBPROJ" || true
       - name: Build and sign
@@ -53,8 +55,9 @@ jobs:
       - name: Package IPA
         run: |
           APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "PsychEngine.app" -type d 2>/dev/null | head -1)
-          [ -z "$APP_PATH" ] && APP_PATH=$(find build -name "*.app" -type d 2>/dev/null | head -1)
+          [ -z "$APP_PATH" ] && APP_PATH=$(find export -name "PsychEngine.app" -type d 2>/dev/null | head -1)
           echo "App: $APP_PATH"
+          ls -la "$APP_PATH" || echo "NOT FOUND"
           mkdir Payload && cp -r "$APP_PATH" Payload/
           zip -r PsychEngine-1.0.4.ipa Payload/
           ls -lh PsychEngine-1.0.4.ipa
