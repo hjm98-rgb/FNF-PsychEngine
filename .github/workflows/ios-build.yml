@@ -19,7 +19,7 @@ jobs:
       - name: Install deps
         run: |
           haxelib setup ~/haxelib
-          haxelib install hxcpp 4.3.2 > /dev/null --quiet || haxelib install hxcpp > /dev/null --quiet
+          haxelib install hxcpp > /dev/null --quiet
           chmod +x ./setup/unix.sh
           sh ./setup/unix.sh
       - name: Skip SScript
@@ -39,9 +39,28 @@ jobs:
       - name: Compile Haxe
         run: |
           set +e
-          haxelib run lime build Project.xml ios -release -final -D officialBuild -D MODS_ALLOWED -D HSCRIPT_ALLOWED -D LUA_ALLOWED -D HXCPP_NO_DEBUGGER --app-version="1.0.4"
+          haxelib run lime build Project.xml ios -release -D officialBuild -D MODS_ALLOWED -D HSCRIPT_ALLOWED -D LUA_ALLOWED --app-version="1.0.4"
           echo "lime exit: 0"
           set -e
+      - name: Strip rpc from static lib
+        run: |
+          set +e
+          # Find the built static library
+          LIB=$(find export -name "libApplicationMain.a" | head -1)
+          echo "Found lib: $LIB"
+          if [ -n "$LIB" ]; then
+            # List objects containing rpc
+            ar -t "$LIB" | grep -i rpc
+            # Remove rpc objects
+            for obj in $(ar -t "$LIB" | grep -i rpc); do
+              echo "Removing: $obj"
+              ar -d "$LIB" "$obj" || true
+            done
+            ranlib "$LIB"
+          fi
+          # Also find and check for BaseConnection source
+          find ~/haxelib -name "BaseConnection.cpp" 2>/dev/null
+          find export -name "BaseConnection.cpp" 2>/dev/null
       - name: Remove get-task-allow
         run: |
           find export -name "*.entitlements" -exec sed -i '' '/get-task-allow/d' {} \; || true
@@ -50,7 +69,7 @@ jobs:
       - name: Build and sign
         run: |
           cd export/release/ios
-          xcodebuild -project PsychEngine.xcodeproj -configuration Release -sdk iphoneos -arch arm64             DEVELOPMENT_TEAM=2TAD594A66             CODE_SIGN_STYLE=Manual             PROVISIONING_PROFILE_SPECIFIER="00008020-000A39E42603802E87"             CODE_SIGN_IDENTITY="Apple Distribution: Terry Peppers (2TAD594A66)"             PRODUCT_BUNDLE_IDENTIFIER=com.cert.account.t260901214911             CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO             OTHER_CFLAGS="-DHXCPP_NO_DEBUGGER"             build 2>&1 | tail -20
+          xcodebuild -project PsychEngine.xcodeproj -configuration Release -sdk iphoneos -arch arm64             DEVELOPMENT_TEAM=2TAD594A66             CODE_SIGN_STYLE=Manual             PROVISIONING_PROFILE_SPECIFIER="00008020-000A39E42603802E87"             CODE_SIGN_IDENTITY="Apple Distribution: Terry Peppers (2TAD594A66)"             PRODUCT_BUNDLE_IDENTIFIER=com.cert.account.t260901214911             CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO             build 2>&1 | tail -25
       - name: Find and package IPA
         run: |
           APP_PATH="export/release/ios/build/Release-iphoneos/PsychEngine.app"
