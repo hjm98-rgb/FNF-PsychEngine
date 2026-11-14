@@ -39,6 +39,13 @@ jobs:
       - name: Generate Xcode project
         run: |
           haxelib run lime build Project.xml ios -D officialBuild -D MODS_ALLOWED -D HSCRIPT_ALLOWED -D LUA_ALLOWED --app-version="1.0.4" || true
+      - name: Remove get-task-allow
+        run: |
+          find export -name "*.entitlements" -exec echo {} \; -exec cat {} \; || true
+          find export -name "*.entitlements" -exec sed -i '' '/get-task-allow/d' {} \; || true
+          # Also strip from pbxproj
+          PBPROJ=$(find export -name "project.pbxproj" | head -1)
+          sed -i '' '/CODE_SIGN_ENTITLEMENTS/d' "$PBPROJ" || true
       - name: Build and sign
         run: |
           cd export/release/ios
