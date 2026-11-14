@@ -42,34 +42,41 @@ jobs:
           haxelib run lime build Project.xml ios -release -D officialBuild -D MODS_ALLOWED -D HSCRIPT_ALLOWED -D LUA_ALLOWED --app-version="1.0.4"
           echo "lime exit: 0"
           set -e
-      - name: Strip rpc from static lib
-        run: |
-          set +e
-          # Find the built static library
-          LIB=$(find export -name "libApplicationMain.a" | head -1)
-          echo "Found lib: $LIB"
-          if [ -n "$LIB" ]; then
-            # List objects containing rpc
-            ar -t "$LIB" | grep -i rpc
-            # Remove rpc objects
-            for obj in $(ar -t "$LIB" | grep -i rpc); do
-              echo "Removing: $obj"
-              ar -d "$LIB" "$obj" || true
-            done
-            ranlib "$LIB"
-          fi
-          # Also find and check for BaseConnection source
-          find ~/haxelib -name "BaseConnection.cpp" 2>/dev/null
-          find export -name "BaseConnection.cpp" 2>/dev/null
       - name: Remove get-task-allow
         run: |
           find export -name "*.entitlements" -exec sed -i '' '/get-task-allow/d' {} \; || true
           PBPROJ=$(find export -name "project.pbxproj" | head -1)
           sed -i '' '/CODE_SIGN_ENTITLEMENTS/d' "$PBPROJ" || true
-      - name: Build and sign
+      - name: First xcodebuild (compile C++, will fail at link)
         run: |
           cd export/release/ios
-          xcodebuild -project PsychEngine.xcodeproj -configuration Release -sdk iphoneos -arch arm64             DEVELOPMENT_TEAM=2TAD594A66             CODE_SIGN_STYLE=Manual             PROVISIONING_PROFILE_SPECIFIER="00008020-000A39E42603802E87"             CODE_SIGN_IDENTITY="Apple Distribution: Terry Peppers (2TAD594A66)"             PRODUCT_BUNDLE_IDENTIFIER=com.cert.account.t260901214911             CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO             build 2>&1 | tail -25
+          set +e
+          xcodebuild -project PsychEngine.xcodeproj -configuration Release -sdk iphoneos -arch arm64             DEVELOPMENT_TEAM=2TAD594A66             CODE_SIGN_STYLE=Manual             PROVISIONING_PROFILE_SPECIFIER="00008020-000A39E42603802E87"             CODE_SIGN_IDENTITY="Apple Distribution: Terry Peppers (2TAD594A66)"             PRODUCT_BUNDLE_IDENTIFIER=com.cert.account.t260901214911             CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO             build 2>&1 | tail -5
+          set -e
+      - name: Strip rpc from static lib
+        run: |
+          set +e
+          LIB=$(find export -name "libApplicationMain.a" 2>/dev/null | head -1)
+          if [ -z "$LIB" ]; then
+            LIB=$(find ~/Library/Developer/Xcode/DerivedData -name "libApplicationMain.a" 2>/dev/null | head -1)
+          fi
+          echo "Found lib: $LIB"
+          if [ -n "$LIB" ]; then
+            echo "Objects with rpc:"
+            ar -t "$LIB" | grep -i rpc
+            for obj in $(ar -t "$LIB" | grep -i rpc); do
+              echo "Removing: $obj"
+              ar -d "$LIB" "$obj" || true
+            done
+            ranlib "$LIB"
+            echo "Done stripping"
+          else
+            echo "WARNING: lib not found!"
+          fi
+      - name: Second xcodebuild (link and sign)
+        run: |
+          cd export/release/ios
+          xcodebuild -project PsychEngine.xcodeproj -configuration Release -sdk iphoneos -arch arm64             DEVELOPMENT_TEAM=2TAD594A66             CODE_SIGN_STYLE=Manual             PROVISIONING_PROFILE_SPECIFIER="00008020-000A39E42603802E87"             CODE_SIGN_IDENTITY="Apple Distribution: Terry Peppers (2TAD594A66)"             PRODUCT_BUNDLE_IDENTIFIER=com.cert.account.t260901214911             CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO             build 2>&1 | tail -15
       - name: Find and package IPA
         run: |
           APP_PATH="export/release/ios/build/Release-iphoneos/PsychEngine.app"
