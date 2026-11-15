@@ -2,6 +2,9 @@ name: Build iOS IPA v2
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ios-build]
+    paths: [.github/workflows/build-v2.yml]
 
 jobs:
   build-ios:
